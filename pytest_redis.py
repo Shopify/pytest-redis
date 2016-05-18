@@ -31,6 +31,10 @@ def pytest_addoption(parser):
                      help=('The key of the redis list containing '
                            'the test paths to execute.'),
                      required=True)
+    parser.addoption('--redis-max-num-tests', metavar='redis_max_num_tests',
+                     type=int,
+                     help=('The maximum number of tests to run.'),
+                     default=-1)
 
 
 def retrieve_test_from_redis(redis_connection, list_key, command):
@@ -102,6 +106,7 @@ def redis_test_generator(config, args_to_prepend):
     redis_port = config.getoption('redis_port')
     redis_pop_type = config.getoption('redis_pop_type')
     redis_list_key = config.getoption('redis_list_key')
+    redis_max_num_tests = config.getoption('redis_max_num_tests')
 
     r_client = redis.StrictRedis(host=redis_host,
                                  port=redis_port)
@@ -113,11 +118,14 @@ def redis_test_generator(config, args_to_prepend):
     if val is None:
         term.write("No items in redis list '%s'\n" % redis_list_key)
 
-    while val is not None:
+    counter = 1
+
+    while (val is not None) and (counter != redis_max_num_tests):
         yield val
         val = retrieve_test_from_redis(r_client,
                                        redis_list_key,
                                        redis_pop_type)
+        counter += 1
 
 
 def pytest_runtest_protocol(item, nextitem):

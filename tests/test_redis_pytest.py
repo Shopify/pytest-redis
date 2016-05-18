@@ -372,4 +372,22 @@ def test_run_once(testdir, redis_connection, redis_args):
         "*test_does_exist PASSED",
         "*test_random_test PASSED"
     ])
+
+
+def test_max_num_tests(testdir, redis_connection, redis_args):
+    """Ensure that the plugin doesn't intefere with other plugins."""
+    test_file_name = "test_external_arguments.py"
+    create_test_file(testdir, test_file_name, """
+        def test_run_should_run():
+            assert True
+    """)
+    for _ in range(40):
+        redis_connection.lpush(redis_args['redis-list-key'],
+                               test_file_name + "::test_run_should_run")
+
+    py_test_args = get_standard_args(redis_args) + \
+        ['--redis-max-num-tests=20']
+
+    result = testdir.runpytest(*py_test_args)
+    assert redis_connection.llen(redis_args['redis-list-key']) == 20
     assert result.ret == EXIT_OK
