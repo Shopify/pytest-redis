@@ -3,9 +3,9 @@ import os
 
 import redis
 import pytest
+import traceback
 
 from _pytest.terminal import TerminalReporter
-import redis
 import _pytest.runner
 from _pytest.main import NoMatch
 from _pytest.main import EXIT_NOTESTSCOLLECTED, EXIT_OK
@@ -127,6 +127,58 @@ def redis_test_generator(config, args_to_prepend):
                                        redis_pop_type)
         counter += 1
 
+
+def pytest_exception_interact(node, call, report):
+    try:
+        from collections import namedtuple
+        import psutil
+        _ntuple_diskusage = namedtuple('usage', 'total used free')
+
+        def disk_usage(path):
+            """Return disk usage statistics about the given path.
+
+            Returned valus is a named tuple with attributes 'total', 'used' and
+            'free', which are the amount of total, used and free space, in bytes.
+            """
+            st = os.statvfs(path)
+            free = st.f_bavail * st.f_frsize
+            total = st.f_blocks * st.f_frsize
+            used = (st.f_blocks - st.f_bfree) * st.f_frsize
+            return _ntuple_diskusage(total, used, free)
+
+        print disk_usage('/')
+        print psutil.phymem_usage()
+        print "pytest_exception_interact 2323"
+        print node
+        print call.excinfo.type
+        print call.excinfo.value
+        exec_str = str(call.excinfo.value)
+        print exec_str
+        filename = exec_str[exec_str.index("/tmp"):]
+        # st = os.stat(filename)
+        # print st
+        paths = filename.split("/")[1:]
+        paths[0] = "/" + paths[0]
+        print paths
+        print os.listdir(paths[0])
+        print os.stat(paths[0])
+        print ""
+        print os.listdir(paths[0] + "/" + paths[1])
+        print os.stat(paths[0] + "/" + paths[1])
+        print ""
+        print call.excinfo.tb
+        print traceback.print_tb(call.excinfo.tb)
+        print call.excinfo.typename
+        print call.excinfo.traceback
+        print report
+        return
+    except:
+        return
+
+def pytest_internalerror(excrepr, excinfo):
+    print "internal 2323"
+    print excrepr
+    print excinfo
 
 def pytest_runtest_protocol(item, nextitem):
     """Called when an item is run. Returning true stops the hook chain."""

@@ -135,6 +135,7 @@ def test_elborate_test_modules(testdir, redis_connection, redis_args):
                                  for test_string in test_to_run_list]
                                 )
 
+
 def test_multiple_consumers(testdir, redis_connection, redis_args):
     """Pull tests from multiple test runs simultaneously."""
     test_file_name = "test_multiple_consumers.py"
@@ -161,6 +162,32 @@ def test_multiple_consumers(testdir, redis_connection, redis_args):
         assert exit_result == EXIT_OK
 
     assert redis_connection.llen(redis_args['redis-list-key']) == 0
+
+
+def test_throw_exception(testdir, redis_connection, redis_args):
+    test_file_name = "test_throw_exception.py"
+    test_module_1 = "a_module"
+    test_module_2 = "a_second_module"
+    create_test_dir(testdir, test_module_1)
+    create_test_dir(testdir, test_module_2)
+
+    create_test_file(testdir, test_module_1 + "/" + test_file_name, """
+        import {}.{}
+
+        def test_run():
+            assert True
+    """.format(test_module_2, "a_package_that_dne"))
+
+    py_test_args = get_standard_args(redis_args)
+    redis_connection.lpush(redis_args['redis-list-key'],
+                           test_module_1 + "/" + test_file_name + "::test_run")
+    redis_connection.lpush(redis_args['redis-list-key'],
+                           test_module_1 + "/" + test_file_name + "::test_run")
+    redis_connection.lpush(redis_args['redis-list-key'],
+                           test_module_1 + "/" + test_file_name + "::test_run")
+
+    result = testdir.runpytest(*py_test_args)
+
 
 
 def test_no_consumption_of_item(testdir, redis_args):
