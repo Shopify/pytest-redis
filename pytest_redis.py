@@ -5,11 +5,54 @@ import redis
 import pytest
 import traceback
 
+import sys
+
 from _pytest.terminal import TerminalReporter
 import _pytest.runner
 from _pytest.main import NoMatch
 from _pytest.main import EXIT_NOTESTSCOLLECTED, EXIT_OK
 
+
+# class RedisSession(Session)
+
+    
+
+
+
+# def wrap_session
+#     """Skeleton command line program"""
+#     session = RedisSession(config)
+#     session.exitstatus = EXIT_OK
+#     initstate = 0
+#     try:
+#         try:
+#             config._do_configure()
+#             initstate = 1
+#             config.hook.pytest_sessionstart(session=session)
+#             initstate = 2
+#             session.exitstatus = doit(config, session) or 0
+#         except pytest.UsageError:
+#             raise
+#         except KeyboardInterrupt:
+#             excinfo = _pytest._code.ExceptionInfo()
+#             config.hook.pytest_keyboard_interrupt(excinfo=excinfo)
+#             session.exitstatus = EXIT_INTERRUPTED
+#         except:
+#             excinfo = _pytest._code.ExceptionInfo()
+#             config.notify_exception(excinfo, config.option)
+#             session.exitstatus = EXIT_INTERNALERROR
+#             if excinfo.errisinstance(SystemExit):
+#                 sys.stderr.write("mainloop: caught Spurious SystemExit!\n")
+
+#     finally:
+#         excinfo = None  # Explicitly break reference cycle.
+#         session.startdir.chdir()
+#         if initstate >= 2:
+#             config.hook.pytest_sessionfinish(
+#                 session=session,
+#                 exitstatus=session.exitstatus)
+#         config._ensure_unconfigure()
+#     return session.exitstatus
 
 
 def pytest_addoption(parser):
@@ -94,6 +137,7 @@ def perform_collect_and_run(session):
             # we cannot directly pass through the exception
             raise pytest.UsageError("Could not find" + arg)
 
+
         session.trace.root.indent -= 1
     return session.items
 
@@ -128,57 +172,170 @@ def redis_test_generator(config, args_to_prepend):
         counter += 1
 
 
-def pytest_exception_interact(node, call, report):
-    try:
-        from collections import namedtuple
-        import psutil
-        _ntuple_diskusage = namedtuple('usage', 'total used free')
 
-        def disk_usage(path):
-            """Return disk usage statistics about the given path.
+# def pytest_make_collect_report(collector):
+#     call = CallInfo(collector._memocollect, "memocollect")
+#     longrepr = None
+#     if not call.excinfo:
+#         outcome = "passed"
+#     else:
+#         from _pytest import nose
+#         skip_exceptions = (Skipped,) + nose.get_skip_exceptions()
+#         if call.excinfo.errisinstance(skip_exceptions):
+#             outcome = "skipped"
+#             r = collector._repr_failure_py(call.excinfo, "line").reprcrash
+#             longrepr = (str(r.path), r.lineno, r.message)
+#         else:
+#             outcome = "failed"
+#             errorinfo = collector.repr_failure(call.excinfo)
+#             if not hasattr(errorinfo, "toterminal"):
+#                 errorinfo = CollectErrorRepr(errorinfo)
+#             longrepr = errorinfo
+#     rep = CollectReport(collector.nodeid, outcome, longrepr,
+#         getattr(call, 'result', None))
+#     rep.call = call  # see collect_one_node
+#     return rep
 
-            Returned valus is a named tuple with attributes 'total', 'used' and
-            'free', which are the amount of total, used and free space, in bytes.
-            """
-            st = os.statvfs(path)
-            free = st.f_bavail * st.f_frsize
-            total = st.f_blocks * st.f_frsize
-            used = (st.f_blocks - st.f_bfree) * st.f_frsize
-            return _ntuple_diskusage(total, used, free)
 
-        print disk_usage('/')
-        print psutil.phymem_usage()
-        print "pytest_exception_interact 2323"
-        print node
-        print call.excinfo.type
-        print call.excinfo.value
-        exec_str = str(call.excinfo.value)
-        print exec_str
-        filename = exec_str[exec_str.index("/tmp"):]
-        # st = os.stat(filename)
-        # print st
-        paths = filename.split("/")[1:]
-        paths[0] = "/" + paths[0]
-        print paths
-        print os.listdir(paths[0])
-        print os.stat(paths[0])
-        print ""
-        print os.listdir(paths[0] + "/" + paths[1])
-        print os.stat(paths[0] + "/" + paths[1])
-        print ""
-        print call.excinfo.tb
-        print traceback.print_tb(call.excinfo.tb)
-        print call.excinfo.typename
-        print call.excinfo.traceback
-        print report
-        return
-    except:
-        return
+# @pytest.hookimpl(trylast=True)
+# def pytest_pyfunc_call(pyfuncitem):
+#     testfunction = pyfuncitem.obj
+#     if pyfuncitem._isyieldedfunction():
+#         testfunction(*pyfuncitem._args)
+#     else:
+#         funcargs = pyfuncitem.funcargs
+#         testargs = {}
+#         for arg in pyfuncitem._fixtureinfo.argnames:
+#             testargs[arg] = funcargs[arg]
+#         testfunction(**testargs)
+#     return True
 
-def pytest_internalerror(excrepr, excinfo):
-    print "internal 2323"
-    print excrepr
-    print excinfo
+# def pytest_collect_file(path, parent):
+#     ext = path.ext
+#     if ext == ".py":
+#         if not parent.session.isinitpath(path):
+#             for pat in parent.config.getini('python_files'):
+#                 if path.fnmatch(pat):
+#                     break
+#             else:
+#                return
+#         ihook = parent.session.gethookproxy(path)
+#         return ihook.pytest_pycollect_makemodule(path=path, parent=parent)
+
+# def pytest_pycollect_makemodule(path, parent):
+#     return Module(path, parent)
+
+# @pytest.hookimpl(hookwrapper=True)
+# def pytest_pycollect_makeitem(collector, name, obj):
+#     outcome = yield
+#     res = outcome.get_result()
+#     if res is not None:
+#         raise StopIteration
+#     # nothing was collected elsewhere, let's do it here
+#     if isclass(obj):
+#         if collector.istestclass(obj, name):
+#             Class = collector._getcustomclass("Class")
+#             outcome.force_result(Class(name, parent=collector))
+#     elif collector.istestfunction(obj, name):
+#         # mock seems to store unbound methods (issue473), normalize it
+#         obj = getattr(obj, "__func__", obj)
+#         # We need to try and unwrap the function if it's a functools.partial
+#         # or a funtools.wrapped.
+#         # We musn't if it's been wrapped with mock.patch (python 2 only)
+#         if not (isfunction(obj) or isfunction(get_real_func(obj))):
+#             collector.warn(code="C2", message=
+#                 "cannot collect %r because it is not a function."
+#                 % name, )
+#         elif getattr(obj, "__test__", True):
+#             if is_generator(obj):
+#                 res = Generator(name, parent=collector)
+#             else:
+#                 res = list(collector._genfunctions(name, obj))
+#             outcome.force_result(res)
+
+# def is_generator(func):
+#     try:
+#         return _pytest._code.getrawcode(func).co_flags & 32 # generator function
+#     except AttributeError: # builtin functions have no bytecode
+#         # assume them to not be generators
+#         return False
+
+# def pytest_exception_interact(node, call, report):
+#     from pprint import pprint
+#     print ""
+#     print ""
+#     print "pytest_exception_interact 2323"
+#     print node
+#     print call
+#     # help(call)
+#     print call.__repr__()
+#     print call.excinfo
+#     # help(call.excinfo)
+#     print call.excinfo.getrepr(style='native')
+#     print report
+#     # help(report)
+#     print "Report"
+#     pprint(vars(report))
+#     print "Call"
+#     pprint(vars(call))
+#     print "Node"
+#     pprint(vars(node))
+#     print "Session"
+#     pprint(vars(node.parent))
+#     print "Current path is"
+#     print sys.path
+#     for line in traceback.format_stack():
+#         print line
+
+#     try:
+#         from collections import namedtuple
+#         import psutil
+#         _ntuple_diskusage = namedtuple('usage', 'total used free')
+
+#         def disk_usage(path):
+#             """Return disk usage statistics about the given path.
+
+#             Returned valus is a named tuple with attributes 'total', 'used' and
+#             'free', which are the amount of total, used and free space, in bytes.
+#             """
+#             st = os.statvfs(path)
+#             free = st.f_bavail * st.f_frsize
+#             total = st.f_blocks * st.f_frsize
+#             used = (st.f_blocks - st.f_bfree) * st.f_frsize
+#             return _ntuple_diskusage(total, used, free)
+
+#         print disk_usage('/')
+#         print psutil.phymem_usage()
+#         print node
+#         print call.excinfo.type
+#         print call.excinfo.value
+#         exec_str = str(call.excinfo.value)
+#         print exec_str
+#         filename = exec_str[exec_str.index("/tmp"):]
+#         # st = os.stat(filename)
+#         # print st
+#         paths = filename.split("/")[1:]
+#         paths[0] = "/" + paths[0]
+#         print paths
+#         print os.listdir(paths[0])
+#         print os.stat(paths[0])
+#         print ""
+#         print os.listdir(paths[0] + "/" + paths[1])
+#         print os.stat(paths[0] + "/" + paths[1])
+#         print ""
+#         print call.excinfo.tb
+#         print traceback.print_tb(call.excinfo.tb)
+#         print call.excinfo.typename
+#         print call.excinfo.traceback
+#         print report
+#         return
+#     except:
+#         return
+
+# def pytest_internalerror(excrepr, excinfo):
+#     print "internal 2323"
+#     print excrepr
+#     print excinfo
 
 def pytest_runtest_protocol(item, nextitem):
     """Called when an item is run. Returning true stops the hook chain."""
