@@ -52,7 +52,7 @@ def redis_args(redis_host, redis_port, redis_list_key):
 
 
 @pytest.fixture
-def redis_connection(redis_args, force_del_lists):
+def redis_connection(request, redis_args, force_del_lists):
     """Return redis_connection and check for empty redist-list-key."""
     r_client = redis.StrictRedis(host=redis_args['redis-host'],
                                  port=redis_args['redis-port'])
@@ -66,5 +66,10 @@ def redis_connection(redis_args, force_del_lists):
             print "Deleting pre-exiting redis list '{}'".format(
                 redis_args['redis-list-key'])
             r_client.delete(redis_args['redis-list-key'])
+
+    def fin():
+        r_client.delete(redis_args['redis-list-key'])
+
+    request.addfinalizer(fin)
 
     return r_client
