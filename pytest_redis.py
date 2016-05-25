@@ -98,7 +98,6 @@ def perform_collect_and_run(session):
     redis_list = populate_test_generator(session,
                                          redis_connection)
 
-
     default_verbosity = session.config.option.verbose
     hook = session.config.hook
     session._initialpaths = set()
