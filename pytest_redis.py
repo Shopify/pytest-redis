@@ -36,13 +36,13 @@ def pytest_addoption(parser):
                            'tests are pushed to this list.'),
                      required=False)
 
+
 def retrieve_test_from_redis(redis_connection, list_key, backup_list_key):
     """Remove and return a test path from the redis queue."""
     if backup_list_key is not None:
         return redis_connection.rpoplpush(list_key, backup_list_key)
     else:
         return redis_connection.rpop(list_key)
-
 
 
 def pytest_collection(session, genitems=True):
@@ -85,19 +85,15 @@ def populate_test_generator(session, redis_connection):
                                 backup_list_key=backup_list_key)
 
 
-
-
 def perform_collect_and_run(session):
     """Collect and run tests streaming from the redis queue."""
     # This mimics the internal pytest collect loop, but shortened
     # while running tests as soon as they are found.
-    term = TerminalReporter(session.config)
 
     redis_connection = get_redis_connection(session.config)
 
     redis_list = populate_test_generator(session,
                                          redis_connection)
-
 
     default_verbosity = session.config.option.verbose
     hook = session.config.hook
@@ -106,7 +102,6 @@ def perform_collect_and_run(session):
     session._notfound = []
     session.items = []
     for arg in redis_list:
-        term.write(os.linesep)
         parts = session._parsearg(arg)
         session._initialparts.append(parts)
         session._initialpaths.add(parts[0])
@@ -114,28 +109,30 @@ def perform_collect_and_run(session):
         session.trace("processing argument", arg)
         session.trace.root.indent += 1
         try:
+            # Change the verbosity to suppress collect messages
+            session.config.option.verbose = -1
             for x in session._collect(arg):
                 items = session.genitems(x)
                 new_items = []
                 for item in items:
                     new_items.append(item)
 
-                # HACK ATTACK: This little hack lets us remove the
-                # 'collected' and 'collecting' messages while still
-                # keeping the default verbosity for the rest of the
-                # run...
-                session.config.option.verbose = -1
                 hook.pytest_collection_modifyitems(session=session,
                                                    config=session.config,
                                                    items=new_items)
+
                 session.config.option.verbose = default_verbosity
                 for item in new_items:
                     session.items.append(item)
                     _pytest.runner.pytest_runtest_protocol(item, None)
+
+                session.config.option.verbose = -1
         except NoMatch:
             # we are inside a make_report hook so
             # we cannot directly pass through the exception
             raise pytest.UsageError("Could not find" + arg)
+        finally:
+            session.config.option.verbose = default_verbosity
         session.trace.root.indent -= 1
     return session.items
 

@@ -6,7 +6,7 @@ setup(
     name='pytest-redis',
     author='Samy Abidib',
     author_email='abidibs@gmail.com',
-    version='0.4.5',
+    version='0.4.7',
     py_modules=['pytest_redis'],
     url='https://github.com/sabidib/pytest-redis',
     license='MIT',
