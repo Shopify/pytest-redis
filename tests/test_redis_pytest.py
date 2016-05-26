@@ -9,44 +9,11 @@ from multiprocessing import Pipe
 import os.path
 
 from _pytest.main import (EXIT_OK,
-                          EXIT_NOTESTSCOLLECTED,
                           EXIT_TESTSFAILED,
                           EXIT_INTERRUPTED,
                           EXIT_USAGEERROR)
 
-
-def default_pytest_redis_args():
-    """Return default options for each pytest execution."""
-    return ['-v', '-p', 'pytest_redis']
-
-
-def get_option_array(option_dict):
-    """Return cmdline options for a dict in '--key=val' form."""
-    return ["--{}={}".format(k, v) for k, v in option_dict.items()]
-
-
-def create_test_file(testdir, filename, text):
-    """Create test file with the given name and text contents."""
-    the_kwargs = {
-        filename: text
-    }
-    ext = ""
-    try:
-        ext = filename.split(".")[-1]
-    except:
-        pass
-
-    testdir.makefile(ext, **the_kwargs)
-
-
-def get_standard_args(option_dict):
-    """Return standard pytest redis_args combinbed with option dict."""
-    return default_pytest_redis_args() + get_option_array(option_dict)
-
-
-def create_test_dir(testdir, dirname):
-    """Create test file with the given name and text contents."""
-    testdir.mkdir(dirname)
+import utils
 
 
 def setup_multiple_consumer_processes(testdir, py_test_args, num_threads):
@@ -71,7 +38,7 @@ def get_elaborate_test_directories_and_paths(testdir, folders):
     num_test_methods_per_file = 2
     # Create the contents of the test files
     for folder in folders.keys():
-        create_test_dir(testdir, folder)
+        utils.create_test_dir(testdir, folder)
         for a_file in folders[folder]:
             file_path = folder + "/" + a_file
             file_text = ""
@@ -88,14 +55,13 @@ def get_elaborate_test_directories_and_paths(testdir, folders):
                 # have a bit more work to do
                 test_name_path = folder + "/" + a_file + "::" + test_name
                 yield test_name_path
-            create_test_file(testdir, file_path, file_text)
-
+            utils.create_test_file(testdir, file_path, file_text)
 
 
 def test_external_arguments(testdir, redis_connection, redis_args):
     """Ensure that the plugin doesn't intefere with other plugins."""
     test_file_name = "test_external_arguments.py"
-    create_test_file(testdir, test_file_name, """
+    utils.create_test_file(testdir, test_file_name, """
         def test_run_should_run():
             assert True
     """)
@@ -103,7 +69,7 @@ def test_external_arguments(testdir, redis_connection, redis_args):
                            test_file_name + "::test_run_should_run")
 
     junitxml_filename = "pytest.xml"
-    py_test_args = get_standard_args(redis_args) + \
+    py_test_args = utils.get_standard_args(redis_args) + \
         ['--junitxml=' + junitxml_filename]
 
     junitxml_path = str(testdir.tmpdir) + "/" + junitxml_filename
@@ -129,17 +95,18 @@ def test_elborate_test_modules(testdir, redis_connection, redis_args):
                                    test_path)
             test_to_run_list.append(test_path)
 
-    py_test_args = get_standard_args(redis_args)
+    py_test_args = utils.get_standard_args(redis_args)
     result = testdir.runpytest(*py_test_args)
     result.stdout.fnmatch_lines(["*" + test_string + " PASSED"
                                  for test_string in test_to_run_list]
                                 )
 
+
 def test_multiple_consumers(testdir, redis_connection, redis_args):
     """Pull tests from multiple test runs simultaneously."""
     test_file_name = "test_multiple_consumers.py"
 
-    create_test_file(testdir, test_file_name, """
+    utils.create_test_file(testdir, test_file_name, """
         def test_multiple_consumers():
             assert True
     """)
@@ -147,7 +114,7 @@ def test_multiple_consumers(testdir, redis_connection, redis_args):
         redis_connection.lpush(redis_args['redis-list-key'],
                                test_file_name + "::test_multiple_consumers")
 
-    py_test_args = get_standard_args(redis_args)
+    py_test_args = utils.get_standard_args(redis_args)
 
     processes = setup_multiple_consumer_processes(testdir, py_test_args, 5)
 
@@ -166,11 +133,11 @@ def test_multiple_consumers(testdir, redis_connection, redis_args):
 def test_no_consumption_of_item(testdir, redis_args):
     """Make sure that we don't run tests when the list is empty."""
     test_file_name = "test_not_used"
-    create_test_file(testdir, test_file_name, """
+    utils.create_test_file(testdir, test_file_name, """
         def test_run_should_run():
             assert True
     """)
-    py_test_args = get_standard_args(redis_args)
+    py_test_args = utils.get_standard_args(redis_args)
     result = testdir.runpytest(*py_test_args)
     assert result.ret == EXIT_OK
 
@@ -178,7 +145,7 @@ def test_no_consumption_of_item(testdir, redis_args):
 def test_non_existent_test_name(testdir, redis_connection, redis_args):
     """Entire test should fail if a non-existent test is specfied."""
     test_file_name = "test_name.py"
-    create_test_file(testdir, test_file_name, """
+    utils.create_test_file(testdir, test_file_name, """
         def test_name_dne():
             assert True
     """)
@@ -186,7 +153,7 @@ def test_non_existent_test_name(testdir, redis_connection, redis_args):
     redis_connection.lpush(redis_args['redis-list-key'],
                            test_file_name + "::test_wrong_name")
 
-    py_test_args = get_standard_args(redis_args)
+    py_test_args = utils.get_standard_args(redis_args)
     result = testdir.runpytest(*py_test_args)
     assert result.ret == EXIT_USAGEERROR
 
@@ -213,13 +180,15 @@ def test_module_test_name(testdir, redis_connection, redis_args):
         def test_random_test_2():
             assert True
     """
-    create_test_dir(testdir, module_1_name)
-    create_test_file(testdir, module_1_name + "/" + module_1_test_filename,
-                     module_1_test_filename_contents)
-    create_test_dir(testdir, module_2_name)
-    create_test_file(testdir, module_2_name + "/" + module_2_test_filename,
-                     module_2_test_filename_contents)
-    py_test_args = get_standard_args(redis_args)
+    utils.create_test_dir(testdir, module_1_name)
+    utils.create_test_file(testdir, module_1_name + "/" +
+                           module_1_test_filename,
+                           module_1_test_filename_contents)
+    utils.create_test_dir(testdir, module_2_name)
+    utils.create_test_file(testdir, module_2_name + "/" +
+                           module_2_test_filename,
+                           module_2_test_filename_contents)
+    py_test_args = utils.get_standard_args(redis_args)
 
     for module in [module_1_name, module_2_name]:
         redis_connection.lpush(redis_args['redis-list-key'], module)
@@ -229,49 +198,6 @@ def test_module_test_name(testdir, redis_connection, redis_args):
             "*" + module + "*PASSED"
         ])
         assert result.ret == EXIT_OK
-
-
-def test_lr_pop_from_list(testdir, redis_connection, redis_args):
-    """Specify rpop from redis list with --redis-pop-type=rpop."""
-    test_file_name = "test_lr_pop_from_list.py"
-
-    create_test_file(testdir, test_file_name, """
-        def test_run0():
-            assert False
-
-        def test_run1():
-            assert True
-    """)
-
-    py_test_args = get_standard_args(redis_args)
-
-    pop_options = ['rpop', 'lpop', 'invalid']
-
-    for pop_dir in pop_options:
-        cur_args = py_test_args + ["--redis-pop-type=" + pop_dir]
-        # populate redis list with tests
-        for ind in range(2):
-            redis_connection.lpush(redis_args['redis-list-key'],
-                                   test_file_name + "::test_run" + str(ind))
-
-        result = testdir.runpytest(*cur_args)
-        if pop_dir == 'rpop':
-            result.stdout.fnmatch_lines([
-                "*::test_run0 FAILED",
-                "*::test_run1 PASSED"
-            ])
-            assert result.ret == EXIT_TESTSFAILED
-        elif pop_dir == 'lpop':
-            result.stdout.fnmatch_lines([
-                "*::test_run1 PASSED",
-                "*::test_run0 FAILED"
-            ])
-            assert result.ret == EXIT_TESTSFAILED
-        elif pop_dir == 'invalid':
-            # Clean up redis list because we have an invalid cmd line opt
-            redis_connection.rpop(redis_args['redis-list-key'])
-            redis_connection.rpop(redis_args['redis-list-key'])
-            assert result.ret == EXIT_INTERRUPTED
 
 
 def test_conf_tests(testdir, redis_connection, redis_args):
@@ -284,7 +210,7 @@ def test_conf_tests(testdir, redis_connection, redis_args):
     ]
     num_times_to_run_tests = 3
 
-    create_test_file(testdir, test_file_name, """
+    utils.create_test_file(testdir, test_file_name, """
         def test_run0(a_fixture):
             assert not a_fixture
 
@@ -296,7 +222,7 @@ def test_conf_tests(testdir, redis_connection, redis_args):
     """)
 
     test_file_name_2 = "conftest.py"
-    create_test_file(testdir, test_file_name_2, """
+    utils.create_test_file(testdir, test_file_name_2, """
         import pytest
 
         def pytest_collection_modifyitems(session, config, items):
@@ -321,7 +247,7 @@ def test_conf_tests(testdir, redis_connection, redis_args):
         redis_connection.lpush(redis_args['redis-list-key'],
                                test_file_name)
 
-    py_test_args = get_standard_args(redis_args) + ["-s"]
+    py_test_args = utils.get_standard_args(redis_args) + ["-s"]
 
     result = testdir.runpytest(*py_test_args)
 
@@ -343,17 +269,17 @@ def test_run_once(testdir, redis_connection, redis_args):
         def test_random_test():
             assert True
     """
-    create_test_dir(testdir, module_name)
-    create_test_file(testdir, module_name + "/" + module_test_filename,
-                     module_test_filename_contents)
-    create_test_file(testdir, module_name + "/__init__.py",
-                     "")
-    create_test_file(testdir, module_name + "/local.py",
-                     """
-                    print "Imported"
-                    """)
+    utils.create_test_dir(testdir, module_name)
+    utils.create_test_file(testdir, module_name + "/" + module_test_filename,
+                           module_test_filename_contents)
+    utils.create_test_file(testdir, module_name + "/__init__.py",
+                           "")
+    utils.create_test_file(testdir, module_name + "/local.py",
+                           """
+                           print "Imported"
+                           """)
 
-    py_test_args = get_standard_args(redis_args) + ["-s"]
+    py_test_args = utils.get_standard_args(redis_args) + ["-s"]
     redis_connection.lpush(redis_args['redis-list-key'],
                            module_name + "/" +
                            module_test_filename + "::test_exists")
