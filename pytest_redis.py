@@ -106,7 +106,6 @@ def perform_collect_and_run(session):
     session._notfound = []
     session.items = []
     for arg in redis_list:
-        term.write(os.linesep)
         parts = session._parsearg(arg)
         session._initialparts.append(parts)
         session._initialpaths.add(parts[0])
