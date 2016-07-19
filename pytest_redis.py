@@ -138,12 +138,12 @@ def perform_collect_and_run(session):
                     # python2 keeps sys.exc_info till the frame is left
                     try:
                         print "Getting next"
-                        return session.items[i+1]
+                        return new_items[i+1]
                     except IndexError:
                         print "Returning none"
                         return None
 
-                for i, item in enumerate(session.items):
+                for i, item in enumerate(new_items):
                     nextitem = getnextitem(i)
                     _pytest.runner.pytest_runtest_protocol(item=item, nextitem=nextitem)
                     # _pytest.runner.pytest_runtest_protocol(item, None)
@@ -175,9 +175,9 @@ def redis_test_generator(config, redis_connection, redis_list_key,
                                        backup_list_key)
 
 
-def pytest_runtest_protocol(item, nextitem):
-    """Called when an item is run. Returning true stops the hook chain."""
-    return True
+# def pytest_runtest_protocol(item, nextitem):
+#     """Called when an item is run. Returning true stops the hook chain."""
+#     return True
 
 
 def pytest_sessionfinish(session, exitstatus):
