@@ -131,7 +131,23 @@ def perform_collect_and_run(session):
                 session.config.option.verbose = default_verbosity
                 for item in new_items:
                     session.items.append(item)
-                    _pytest.runner.pytest_runtest_protocol(item, None)
+
+                def getnextitem(i):
+                    # this is a function to avoid python2
+                    # keeping sys.exc_info set when calling into a test
+                    # python2 keeps sys.exc_info till the frame is left
+                    try:
+                        print "Getting next"
+                        return session.items[i+1]
+                    except IndexError:
+                        print "Returning none"
+                        return None
+
+                for i, item in enumerate(session.items):
+                    nextitem = getnextitem(i)
+                    _pytest.runner.pytest_runtest_protocol(item=item, nextitem=nextitem)
+                    # _pytest.runner.pytest_runtest_protocol(item, None)
+
         except NoMatch:
             # we are inside a make_report hook so
             # we cannot directly pass through the exception
