@@ -37,11 +37,12 @@ def pytest_addoption(parser):
                      required=False)
 
 
-def retrieve_test_from_redis(redis_connection, list_key, backup_list_key):
+def retrieve_test_from_redis(redis_connection, list_key, backup_list_key, term):
     """Remove and return a test path from the redis queue."""
+    term.write("Retrieving test")
     if backup_list_key is not None:
         value = redis_connection.rpoplpush(list_key, backup_list_key)
-        print("Pulling from list key {} and pushing to backup_list_key {}, test_value is {}".format(list_key, backup_list_key, value)
+        term.write("Pulling from list key {} and pushing to backup_list_key {}, test_value is {}".format(list_key, backup_list_key, value))
         return value
     else:
         return redis_connection.rpop(list_key)
@@ -145,7 +146,8 @@ def redis_test_generator(config, redis_connection, redis_list_key,
 
     val = retrieve_test_from_redis(redis_connection,
                                    redis_list_key,
-                                   backup_list_key)
+                                   backup_list_key,
+                                   term)
 
     if val is None:
         term.write("No items in redis list '%s'\n" % redis_list_key)
@@ -154,7 +156,8 @@ def redis_test_generator(config, redis_connection, redis_list_key,
         yield val
         val = retrieve_test_from_redis(redis_connection,
                                        redis_list_key,
-                                       backup_list_key)
+                                       backup_list_key,
+                                       term)
 
 
 def pytest_runtest_protocol(item, nextitem):
