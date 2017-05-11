@@ -40,10 +40,11 @@ def pytest_addoption(parser):
 def retrieve_test_from_redis(redis_connection, list_key, backup_list_key):
     """Remove and return a test path from the redis queue."""
     if backup_list_key is not None:
-        return redis_connection.rpoplpush(list_key, backup_list_key)
+        value = redis_connection.rpoplpush(list_key, backup_list_key)
+        print("Pulling from list key {} and pushing to backup_list_key {}, test_value is {}".format(list_key, backup_list_key, value)
+        return value
     else:
         return redis_connection.rpop(list_key)
-
 
 def pytest_collection(session, genitems=True):
     """We hook into the collection call and do the collection ourselves."""
